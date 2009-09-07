@@ -14,7 +14,6 @@ import logging
 import os
 import subprocess
 import sys
-from deployable.plugins import tarball
 
 
 __author__ = 'Daniel Lindsley'

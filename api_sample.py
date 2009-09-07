@@ -1,5 +1,4 @@
 from deployable import *
-from deployable.plugins import git, svn
 
 
 TARGET_DIRECTORY = os.path.join('/Users/daniellindsley/Desktop/sample_deploy')
