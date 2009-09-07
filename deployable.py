@@ -262,7 +262,7 @@ class Git(DeployCommand):
         if target is not None:
             self.target = target
         else:
-            self.target = os.path.splitext(self.url)[0]
+            self.target = os.path.splitext(os.path.basename(self.url))[0]
         
         if not self.name:
             self.name = url
@@ -305,17 +305,17 @@ class Git(DeployCommand):
         
         self.log.info("Git pull '%s' succeeded." % command)
     
-    def checkout(self, revision):
+    def reset(self, revision):
         os.chdir(self.target)
         
-        command = 'git checkout %s' % revision
-        self.log.info("Running git checkout on revision '%s'..." % command)
+        command = 'git reset %s' % revision
+        self.log.info("Running git reset on revision '%s'..." % command)
         success, stdout, stderr = self.shell_command(command)
         
         if not success:
-            raise CommandFailed("Git checkout of revision '%s' failed - %s." % (revision, stderr))
+            raise CommandFailed("Git reset of revision '%s' failed - %s." % (revision, stderr))
         
-        self.log.info("Git checkout of '%s' succeeded." % revision)
+        self.log.info("Git reset of '%s' succeeded." % revision)
     
     def run_command(self):
         if not self.check_for_repo():
@@ -324,7 +324,7 @@ class Git(DeployCommand):
             self.pull()
         
         if self.revision:
-            self.checkout(self.revision)
+            self.reset(self.revision)
         
         self.log.info("Git '%s' succeeded." % self.name)
         
