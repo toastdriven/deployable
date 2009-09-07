@@ -238,9 +238,18 @@ class Tarball(DeployCommand):
             raise CommandFailed("Extraction of tarball '%s' failed - %s." % (extract_command, stderr))
         
         self.log.info("Tarball extraction '%s' succeeded." % extract_command)
+        return filename
     
     def run_command(self):
         use_curl = self.determine_curl_or_wget()
         self.download_tarball(use_curl)
-        self.extract_tarball()
-        self.log.info("Tarball '%s' succeeded." % self.url)
+        filename = self.extract_tarball()
+        self.log.info("Tarball '%s' succeeded." % self.name)
+        
+        if self.post_process is not None:
+            self.log.info("Post-processing tarball '%s'..." % self.name)
+            self.post_process(filename)
+            self.log.info("Tarball '%s' post-processing succeeded." % self.name)
+
+
+
