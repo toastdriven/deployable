@@ -17,7 +17,7 @@ import sys
 
 
 __author__ = 'Daniel Lindsley'
-__version__ = (0, 3, 1)
+__version__ = (0, 3, 2)
 __license__ = 'BSD'
 
 
@@ -377,7 +377,14 @@ class GitSvn(VersionControl):
     def fetch_reversion(self, revision):
         os.chdir(self.repo_path)
         
-        command = 'git svn fetch -r%s' % revision
+        command = 'git svn find-rev r%s' % revision
+        success, stdout, stderr = self.shell_command(command)
+        
+        if not success or not stdout:
+            raise CommandFailed("GitSvn revision '%s' failed - No such revision." % revision)
+        
+        sha_revision = stdout
+        command = 'git reset %s' % sha_revision
         self.easy_command(command, 'GitSvn fetch')
     
     def run_command(self):
