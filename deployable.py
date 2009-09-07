@@ -17,7 +17,7 @@ import sys
 
 
 __author__ = 'Daniel Lindsley'
-__version__ = (0, 0, 1)
+__version__ = (0, 2, 0)
 __license__ = 'BSD'
 
 
@@ -67,6 +67,19 @@ class DeployCommand(object):
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (stdout, stderr) = process.communicate()
         return (process.returncode == 0, stdout, stderr)
+    
+    def easy_command(self, command, description=''):
+        """
+        Handles the common case for running a shell command and checking for
+        success.
+        """
+        self.log.info("Running %s - '%s'..." % (description, command))
+        success, stdout, stderr = self.shell_command(command)
+        
+        if not success:
+            raise CommandFailed("%s '%s' failed - %s." % (description.capitalize(), command, stderr))
+        
+        self.log.info("%s '%s' succeeded." % (description.capitalize(), command))
 
 
 def deploy(commands, target=None, local_cache=None, logger=None):
@@ -269,14 +282,7 @@ class Git(DeployCommand):
     
     def clone(self):
         command = 'git clone %s' % self.url
-        
-        self.log.info("Running git clone - '%s'..." % command)
-        success, stdout, stderr = self.shell_command(command)
-        
-        if not success:
-            raise CommandFailed("Git clone '%s' failed - %s." % (command, stderr))
-        
-        self.log.info("Git clone '%s' succeeded." % command)
+        self.easy_command(command, 'git clone')
     
     def check_for_repo(self):
         if not os.path.exists(self.target):
@@ -297,25 +303,13 @@ class Git(DeployCommand):
         
         # DRL_TODO: Think about remotes/branches here. For now, origin/master will do.
         command = 'git pull'
-        self.log.info("Running git pull - '%s'..." % command)
-        success, stdout, stderr = self.shell_command(command)
-        
-        if not success:
-            raise CommandFailed("Git pull '%s' failed - %s." % (command, stderr))
-        
-        self.log.info("Git pull '%s' succeeded." % command)
+        self.easy_command(command, 'git pull')
     
     def reset(self, revision):
         os.chdir(self.target)
         
         command = 'git reset %s' % revision
-        self.log.info("Running git reset on revision '%s'..." % command)
-        success, stdout, stderr = self.shell_command(command)
-        
-        if not success:
-            raise CommandFailed("Git reset of revision '%s' failed - %s." % (revision, stderr))
-        
-        self.log.info("Git reset of '%s' succeeded." % revision)
+        self.easy_command(command, 'git reset')
     
     def run_command(self):
         if not self.check_for_repo():
@@ -332,3 +326,65 @@ class Git(DeployCommand):
             self.log.info("Post-processing git '%s'..." % self.name)
             self.post_process(filename)
             self.log.info("Git '%s' post-processing succeeded." % self.name)
+
+
+class GitSvn(DeployCommand):
+    def __init__(self, url, revision=None, target=None, **kwargs):
+        super(GitSvn, self).__init__(**kwargs)
+        self.url = url
+        self.revision = revision
+        
+        if target is not None:
+            self.target = target
+        else:
+            self.target = os.path.splitext(os.path.basename(self.url))[0]
+        
+        if not self.name:
+            self.name = url
+    
+    def clone(self):
+        command = 'git svn clone %s' % self.url
+        self.easy_command(command, 'GitSvn clone')
+    
+    def check_for_repo(self):
+        if not os.path.exists(self.target):
+            return False
+        
+        os.chdir(self.target)
+        
+        command = 'git svn info'
+        success, stdout, stderr = self.shell_command(command)
+        
+        if not success:
+            return False
+        
+        return True
+    
+    def rebase(self):
+        os.chdir(self.target)
+        
+        # DRL_TODO: Think about remotes/branches here. For now, origin/master will do.
+        command = 'git svn rebase'
+        self.easy_command(command, 'GitSvn rebase')
+    
+    def fetch_reversion(self, revision):
+        os.chdir(self.target)
+        
+        command = 'git svn fetch -r%s' % revision
+        self.easy_command(command, 'GitSvn fetch')
+    
+    def run_command(self):
+        if not self.check_for_repo():
+            self.clone()
+        else:
+            self.rebase()
+        
+        if self.revision:
+            self.fetch_reversion(self.revision)
+        
+        self.log.info("GitSvn '%s' succeeded." % self.name)
+        
+        if self.post_process is not None:
+            self.log.info("Post-processing GitSvn '%s'..." % self.name)
+            self.post_process(filename)
+            self.log.info("GitSvn '%s' post-processing succeeded." % self.name)

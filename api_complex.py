@@ -13,7 +13,7 @@ install_list = [
     Tarball(url='http://pypi.python.org/packages/source/W/Whoosh/Whoosh-0.3.0b24.zip', target='whoosh.zip', name='download_whoosh', post_process=whoosh_post), # complex
     Git(url='git://github.com/toastdriven/django-haystack.git', revision='b44afc6c'),
     # Svn(url='http://code.djangoproject.com/svn/django/trunk/django'),
-    # GitSvn(url='http://code.djangoproject.com/svn/django/trunk/django'),
+    GitSvn(url='http://pysolr.googlecode.com/svn/trunk/', target='pysolr', revision='26'),
 ]
 
 
