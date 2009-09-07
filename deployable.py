@@ -17,7 +17,7 @@ import sys
 
 
 __author__ = 'Daniel Lindsley'
-__version__ = (0, 4, 0)
+__version__ = (0, 4, 1)
 __license__ = 'BSD'
 
 
@@ -306,7 +306,7 @@ class Git(VersionControl):
         command = 'git status'
         success, stdout, stderr = self.shell_command(command)
         
-        if not success:
+        if stderr:
             return False
         
         return True
@@ -321,7 +321,7 @@ class Git(VersionControl):
     def reset(self, revision):
         os.chdir(self.repo_path)
         
-        command = 'git reset %s' % revision
+        command = 'git reset --hard %s' % revision
         self.easy_command(command, 'git reset')
     
     def run_command(self):
@@ -357,7 +357,7 @@ class GitSvn(VersionControl):
         command = 'git svn info'
         success, stdout, stderr = self.shell_command(command)
         
-        if not success:
+        if stderr:
             return False
         
         return True
@@ -379,7 +379,7 @@ class GitSvn(VersionControl):
             raise CommandFailed("GitSvn revision '%s' failed - No such revision." % revision)
         
         sha_revision = stdout
-        command = 'git reset %s' % sha_revision
+        command = 'git reset --hard %s' % sha_revision
         self.easy_command(command, 'GitSvn fetch')
     
     def run_command(self):
@@ -476,7 +476,10 @@ class Hg(VersionControl):
         command = 'hg pull'
         self.easy_command(command, 'hg pull')
         
-        command = 'hg merge'
+        command = 'hg update'
+        self.easy_command(command, 'hg update')
+        
+        command = 'hg merge -f'
         self.easy_command(command, 'hg merge')
     
     def update(self, revision):
