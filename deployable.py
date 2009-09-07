@@ -124,11 +124,7 @@ def deploy(commands, target=None, local_cache=None, logger=None):
                     logger.error("Command failed. Moving on...")
                 else:
                     logger.error("Command failed. Aborting...")
-                    
-                    if isinstance(e, CommandFailed):
-                        raise e
-                    else:
-                        raise DeployFailed("Command '%s' failed - %s." % (command.name, e))
+                    raise
     
     logger.info("Deploy completed successfully.")
 
@@ -257,4 +253,82 @@ class Tarball(DeployCommand):
             self.log.info("Tarball '%s' post-processing succeeded." % self.name)
 
 
-
+class Git(DeployCommand):
+    def __init__(self, url, revision=None, target=None, **kwargs):
+        super(Git, self).__init__(**kwargs)
+        self.url = url
+        self.revision = revision
+        
+        if target is not None:
+            self.target = target
+        else:
+            self.target = os.path.splitext(self.url)[0]
+        
+        if not self.name:
+            self.name = url
+    
+    def clone(self):
+        command = 'git clone %s' % self.url
+        
+        self.log.info("Running git clone - '%s'..." % command)
+        success, stdout, stderr = self.shell_command(command)
+        
+        if not success:
+            raise CommandFailed("Git clone '%s' failed - %s." % (command, stderr))
+        
+        self.log.info("Git clone '%s' succeeded." % command)
+    
+    def check_for_repo(self):
+        if not os.path.exists(self.target):
+            return False
+        
+        os.chdir(self.target)
+        
+        command = 'git status'
+        success, stdout, stderr = self.shell_command(command)
+        
+        if not success:
+            return False
+        
+        return True
+    
+    def pull(self):
+        os.chdir(self.target)
+        
+        # DRL_TODO: Think about remotes/branches here. For now, origin/master will do.
+        command = 'git pull'
+        self.log.info("Running git pull - '%s'..." % command)
+        success, stdout, stderr = self.shell_command(command)
+        
+        if not success:
+            raise CommandFailed("Git pull '%s' failed - %s." % (command, stderr))
+        
+        self.log.info("Git pull '%s' succeeded." % command)
+    
+    def checkout(self, revision):
+        os.chdir(self.target)
+        
+        command = 'git checkout %s' % revision
+        self.log.info("Running git checkout on revision '%s'..." % command)
+        success, stdout, stderr = self.shell_command(command)
+        
+        if not success:
+            raise CommandFailed("Git checkout of revision '%s' failed - %s." % (revision, stderr))
+        
+        self.log.info("Git checkout of '%s' succeeded." % revision)
+    
+    def run_command(self):
+        if not self.check_for_repo():
+            self.clone()
+        else:
+            self.pull()
+        
+        if self.revision:
+            self.checkout(self.revision)
+        
+        self.log.info("Git '%s' succeeded." % self.name)
+        
+        if self.post_process is not None:
+            self.log.info("Post-processing git '%s'..." % self.name)
+            self.post_process(filename)
+            self.log.info("Git '%s' post-processing succeeded." % self.name)

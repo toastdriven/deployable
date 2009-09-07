@@ -8,7 +8,7 @@ TARGET_DIRECTORY = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'sim
 install_list = [
     Shell(command='mkdir foo'),
     Tarball(url='http://pypi.python.org/packages/source/W/Whoosh/Whoosh-0.3.0b24.zip'),
-    # Git(url='git://github.com/toastdriven/django-haystack.git', revision='b44afc6c'),
+    Git(url='git://github.com/toastdriven/django-haystack.git'),
     # Svn(url='http://code.djangoproject.com/svn/django/trunk/django'),
     # GitSvn(url='http://code.djangoproject.com/svn/django/trunk/django'),
 ]
