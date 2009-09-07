@@ -14,6 +14,7 @@ install_list = [
     Git(url='git://github.com/toastdriven/django-haystack.git', revision='b44afc6c'),
     Svn(url='http://code.djangoproject.com/svn/django/trunk/django', revision='11364'),
     GitSvn(url='http://pysolr.googlecode.com/svn/trunk/', checkout_as='pysolr', revision='26'),
+    Hg(url='http://bitbucket.org/ubernostrum/django-profiles/', revision='24'),
 ]
 
 

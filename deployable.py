@@ -17,7 +17,7 @@ import sys
 
 
 __author__ = 'Daniel Lindsley'
-__version__ = (0, 3, 2)
+__version__ = (0, 4, 0)
 __license__ = 'BSD'
 
 
@@ -269,6 +269,10 @@ class Tarball(DeployCommand):
 class VersionControl(DeployCommand):
     def __init__(self, url, revision=None, target=None, checkout_as=None, **kwargs):
         super(VersionControl, self).__init__(**kwargs)
+        
+        if url.endswith('/'):
+            url = url[:-1]
+        
         self.url = url
         self.revision = revision
         self.target = target
@@ -338,15 +342,6 @@ class Git(VersionControl):
 
 
 class GitSvn(VersionControl):
-    def __init__(self, **kwargs):
-        # Preprocess the URL so that the mechanisms in the parent's __init__
-        # work correctly on naming.
-        if 'url' in kwargs:
-            if kwargs['url'].endswith('/'):
-                kwargs['url'] = kwargs['url'][:-1]
-        
-        super(GitSvn, self).__init__(**kwargs)
-    
     def clone(self):
         os.chdir(self.target)
         
@@ -405,15 +400,6 @@ class GitSvn(VersionControl):
 
 
 class Svn(VersionControl):
-    def __init__(self, **kwargs):
-        # Preprocess the URL so that the mechanisms in the parent's __init__
-        # work correctly on naming.
-        if 'url' in kwargs:
-            if kwargs['url'].endswith('/'):
-                kwargs['url'] = kwargs['url'][:-1]
-        
-        super(Svn, self).__init__(**kwargs)
-    
     def checkout(self):
         os.chdir(self.target)
         
@@ -460,3 +446,57 @@ class Svn(VersionControl):
             self.log.info("Post-processing Svn '%s'..." % self.name)
             self.post_process(filename)
             self.log.info("Svn '%s' post-processing succeeded." % self.name)
+
+
+class Hg(VersionControl):
+    def clone(self):
+        os.chdir(self.target)
+        
+        command = 'hg clone %s %s' % (self.url, self.repo_path)
+        self.easy_command(command, 'hg clone')
+    
+    def check_for_repo(self):
+        if not os.path.exists(self.repo_path):
+            return False
+        
+        os.chdir(self.repo_path)
+        
+        command = 'hg status'
+        success, stdout, stderr = self.shell_command(command)
+        
+        if not success:
+            return False
+        
+        return True
+    
+    def pull(self):
+        os.chdir(self.repo_path)
+        
+        # DRL_TODO: Think about remotes/branches here. For now, origin/master will do.
+        command = 'hg pull'
+        self.easy_command(command, 'hg pull')
+        
+        command = 'hg merge'
+        self.easy_command(command, 'hg merge')
+    
+    def update(self, revision):
+        os.chdir(self.repo_path)
+        
+        command = 'hg update %s' % revision
+        self.easy_command(command, 'hg update')
+    
+    def run_command(self):
+        if not self.check_for_repo():
+            self.clone()
+        else:
+            self.pull()
+        
+        if self.revision:
+            self.update(self.revision)
+        
+        self.log.info("Hg '%s' succeeded." % self.name)
+        
+        if self.post_process is not None:
+            self.log.info("Post-processing Hg '%s'..." % self.name)
+            self.post_process(filename)
+            self.log.info("Hg '%s' post-processing succeeded." % self.name)

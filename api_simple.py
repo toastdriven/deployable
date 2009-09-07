@@ -11,6 +11,7 @@ install_list = [
     Git(url='git://github.com/toastdriven/django-haystack.git'),
     Svn(url='http://code.djangoproject.com/svn/django/trunk/django'),
     GitSvn(url='http://pysolr.googlecode.com/svn/trunk/'),
+    Hg(url='http://bitbucket.org/ubernostrum/django-profiles/'),
 ]
 
 deploy(install_list, target=TARGET_DIRECTORY)
