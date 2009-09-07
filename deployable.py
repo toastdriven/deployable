@@ -17,7 +17,7 @@ import sys
 
 
 __author__ = 'Daniel Lindsley'
-__version__ = (0, 3, 0)
+__version__ = (0, 3, 1)
 __license__ = 'BSD'
 
 
@@ -122,6 +122,9 @@ def deploy(commands, target=None, local_cache=None, logger=None):
         if not command.log:
             command.log = logger
         
+        if hasattr(command, 'target') and command.target is None:
+            command.target = target
+        
         # Go back to the directory we're interested in, in case we got bumped
         # out of it by a command.
         os.chdir(target)
@@ -175,13 +178,22 @@ class Shell(DeployCommand):
 
 
 class Tarball(DeployCommand):
-    def __init__(self, url, target=None, **kwargs):
+    def __init__(self, url, target=None, filename=None, **kwargs):
         super(Tarball, self).__init__(**kwargs)
         self.url = url
         self.target = target
         
+        if filename:
+            self.filename = filename
+        else:
+            self.filename = os.path.basename(self.url)
+        
         if not self.name:
             self.name = url
+    
+    @property
+    def download_filename(self):
+        return os.path.join(self.target, self.filename)
     
     def determine_curl_or_wget(self):
         curl = True
@@ -200,12 +212,12 @@ class Tarball(DeployCommand):
     def download_tarball(self, curl=True):
         if curl:
             if self.target:
-                command = 'curl -o %s %s' % (self.target, self.url)
+                command = 'curl -o %s %s' % (self.download_filename, self.url)
             else:
                 command = 'curl -O %s' % self.url
         else:
             if self.target:
-                command = 'wget -O %s %s' % (self.target, self.url)
+                command = 'wget -O %s %s' % (self.download_filename, self.url)
             else:
                 command = 'wget %s' % self.url
         
@@ -219,70 +231,73 @@ class Tarball(DeployCommand):
     
     def extract_tarball(self):
         # Determine the type for extraction.
-        if self.target:
-            filename = os.path.basename(self.target)
-        else:
-            filename = os.path.basename(self.url)
-        
-        extension = os.path.splitext(filename)[1]
+        extension = os.path.splitext(self.download_filename)[1]
         
         if 'gz' in extension:
-            extract_command = 'tar xzf %s' % filename
+            extract_command = 'tar xzf %s' % self.download_filename
         elif 'bz2' in extension:
-            extract_command = 'tar xjf %s' % filename
+            extract_command = 'tar xjf %s' % self.download_filename
         elif 'tar' in extension:
-            extract_command = 'tar xjf %s' % filename
+            extract_command = 'tar xjf %s' % self.download_filename
         elif 'zip' in extension:
-            extract_command = 'unzip -u %s' % filename
+            extract_command = 'unzip -u %s' % self.download_filename
         else:
-            self.log.error("Unable to extract '%s' as it is an unknown type (%s). Please report this issue." % (filename, extension))
+            self.log.error("Unable to extract '%s' as it is an unknown type (%s). Please report this issue." % (self.download_filename, extension))
             raise CommandFailed("Extraction of tarball failed - %s." % stderr)
             
         
-        self.log.info("Extracting tarball '%s'..." % filename)
+        self.log.info("Extracting tarball '%s'..." % self.download_filename)
         success, stdout, stderr = self.shell_command(extract_command)
         
         if not success:
             raise CommandFailed("Extraction of tarball '%s' failed - %s." % (extract_command, stderr))
         
         self.log.info("Tarball extraction '%s' succeeded." % extract_command)
-        return filename
     
     def run_command(self):
         use_curl = self.determine_curl_or_wget()
         self.download_tarball(use_curl)
-        filename = self.extract_tarball()
+        self.extract_tarball()
         self.log.info("Tarball '%s' succeeded." % self.name)
         
         if self.post_process is not None:
             self.log.info("Post-processing tarball '%s'..." % self.name)
-            self.post_process(filename)
+            self.post_process(self.download_filename)
             self.log.info("Tarball '%s' post-processing succeeded." % self.name)
 
 
-class Git(DeployCommand):
-    def __init__(self, url, revision=None, target=None, **kwargs):
-        super(Git, self).__init__(**kwargs)
+class VersionControl(DeployCommand):
+    def __init__(self, url, revision=None, target=None, checkout_as=None, **kwargs):
+        super(VersionControl, self).__init__(**kwargs)
         self.url = url
         self.revision = revision
+        self.target = target
         
-        if target is not None:
-            self.target = target
+        if checkout_as is not None:
+            self.checkout_as = checkout_as
         else:
-            self.target = os.path.splitext(os.path.basename(self.url))[0]
+            self.checkout_as = os.path.splitext(os.path.basename(self.url))[0]
         
         if not self.name:
             self.name = url
     
+    @property
+    def repo_path(self):
+        return os.path.join(self.target, self.checkout_as)
+
+
+class Git(VersionControl):
     def clone(self):
-        command = 'git clone %s' % self.url
+        os.chdir(self.target)
+        
+        command = 'git clone %s %s' % (self.url, self.repo_path)
         self.easy_command(command, 'git clone')
     
     def check_for_repo(self):
-        if not os.path.exists(self.target):
+        if not os.path.exists(self.repo_path):
             return False
         
-        os.chdir(self.target)
+        os.chdir(self.repo_path)
         
         command = 'git status'
         success, stdout, stderr = self.shell_command(command)
@@ -293,14 +308,14 @@ class Git(DeployCommand):
         return True
     
     def pull(self):
-        os.chdir(self.target)
+        os.chdir(self.repo_path)
         
         # DRL_TODO: Think about remotes/branches here. For now, origin/master will do.
         command = 'git pull'
         self.easy_command(command, 'git pull')
     
     def reset(self, revision):
-        os.chdir(self.target)
+        os.chdir(self.repo_path)
         
         command = 'git reset %s' % revision
         self.easy_command(command, 'git reset')
@@ -322,29 +337,27 @@ class Git(DeployCommand):
             self.log.info("Git '%s' post-processing succeeded." % self.name)
 
 
-class GitSvn(DeployCommand):
-    def __init__(self, url, revision=None, target=None, **kwargs):
+class GitSvn(VersionControl):
+    def __init__(self, **kwargs):
+        # Preprocess the URL so that the mechanisms in the parent's __init__
+        # work correctly on naming.
+        if 'url' in kwargs:
+            if kwargs['url'].endswith('/'):
+                kwargs['url'] = kwargs['url'][:-1]
+        
         super(GitSvn, self).__init__(**kwargs)
-        self.url = url
-        self.revision = revision
-        
-        if target is not None:
-            self.target = target
-        else:
-            self.target = os.path.splitext(os.path.basename(self.url))[0]
-        
-        if not self.name:
-            self.name = url
     
     def clone(self):
-        command = 'git svn clone %s' % self.url
+        os.chdir(self.target)
+        
+        command = 'git svn clone %s %s' % (self.url, self.repo_path)
         self.easy_command(command, 'GitSvn clone')
     
     def check_for_repo(self):
-        if not os.path.exists(self.target):
+        if not os.path.exists(self.repo_path):
             return False
         
-        os.chdir(self.target)
+        os.chdir(self.repo_path)
         
         command = 'git svn info'
         success, stdout, stderr = self.shell_command(command)
@@ -355,14 +368,14 @@ class GitSvn(DeployCommand):
         return True
     
     def rebase(self):
-        os.chdir(self.target)
+        os.chdir(self.repo_path)
         
         # DRL_TODO: Think about remotes/branches here. For now, origin/master will do.
         command = 'git svn rebase'
         self.easy_command(command, 'GitSvn rebase')
     
     def fetch_reversion(self, revision):
-        os.chdir(self.target)
+        os.chdir(self.repo_path)
         
         command = 'git svn fetch -r%s' % revision
         self.easy_command(command, 'GitSvn fetch')
@@ -384,29 +397,27 @@ class GitSvn(DeployCommand):
             self.log.info("GitSvn '%s' post-processing succeeded." % self.name)
 
 
-class Svn(DeployCommand):
-    def __init__(self, url, revision=None, target=None, **kwargs):
+class Svn(VersionControl):
+    def __init__(self, **kwargs):
+        # Preprocess the URL so that the mechanisms in the parent's __init__
+        # work correctly on naming.
+        if 'url' in kwargs:
+            if kwargs['url'].endswith('/'):
+                kwargs['url'] = kwargs['url'][:-1]
+        
         super(Svn, self).__init__(**kwargs)
-        self.url = url
-        self.revision = revision
-        
-        if target is not None:
-            self.target = target
-        else:
-            self.target = os.path.splitext(os.path.basename(self.url))[0]
-        
-        if not self.name:
-            self.name = url
     
     def checkout(self):
-        command = 'svn checkout %s' % self.url
+        os.chdir(self.target)
+        
+        command = 'svn checkout %s %s' % (self.url, self.repo_path)
         self.easy_command(command, 'svn checkout')
     
     def check_for_repo(self):
-        if not os.path.exists(self.target):
+        if not os.path.exists(self.repo_path):
             return False
         
-        os.chdir(self.target)
+        os.chdir(self.repo_path)
         
         command = 'svn info'
         success, stdout, stderr = self.shell_command(command)
@@ -417,7 +428,7 @@ class Svn(DeployCommand):
         return True
     
     def update(self, revision=None):
-        os.chdir(self.target)
+        os.chdir(self.repo_path)
         
         # DRL_TODO: Think about branches here. For now, trunk will do.
         if revision is None:

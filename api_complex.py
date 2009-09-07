@@ -10,10 +10,10 @@ def whoosh_post(filename):
 
 install_list = [
     Shell(command='mkdir foo', allow_fail=True),
-    Tarball(url='http://pypi.python.org/packages/source/W/Whoosh/Whoosh-0.3.0b24.zip', target='whoosh.zip', name='download_whoosh', post_process=whoosh_post), # complex
+    Tarball(url='http://pypi.python.org/packages/source/W/Whoosh/Whoosh-0.3.0b24.zip', filename='whoosh.zip', name='download_whoosh', post_process=whoosh_post),
     Git(url='git://github.com/toastdriven/django-haystack.git', revision='b44afc6c'),
-    # Svn(url='http://code.djangoproject.com/svn/django/trunk/django'),
-    GitSvn(url='http://pysolr.googlecode.com/svn/trunk/', target='pysolr', revision='26'),
+    Svn(url='http://code.djangoproject.com/svn/django/trunk/django', revision='11364'),
+    GitSvn(url='http://pysolr.googlecode.com/svn/trunk/', checkout_as='pysolr', revision='26'),
 ]
 
 
