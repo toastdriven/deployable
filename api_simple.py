@@ -2,7 +2,7 @@ from deployable import *
 
 
 # For testing only! Not necessary if extracting to the current directory is A-OK by you.
-TARGET_DIRECTORY = os.path.join(os.path.dirname(__file__), 'simple_deploy')
+TARGET_DIRECTORY = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'simple_deploy')
 
 
 install_list = [
@@ -12,6 +12,5 @@ install_list = [
     # Svn(url='http://code.djangoproject.com/svn/django/trunk/django'),
     # GitSvn(url='http://code.djangoproject.com/svn/django/trunk/django'),
 ]
-
 
 deploy(install_list, target=TARGET_DIRECTORY)

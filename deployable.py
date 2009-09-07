@@ -96,11 +96,11 @@ def deploy(commands, target=None, local_cache=None, logger=None):
         logger = log
     
     if target is None:
-        target = os.path.join(os.path.dirname(__file__))
-    else:
-        target = create_target_directory(logger, target)
-        os.chdir(target)
-        
+        target = os.path.abspath(os.path.dirname(__file__))
+    elif not target.startswith('/'):
+        target = os.path.join(os.path.abspath(os.path.dirname(__file__)), target)
+    
+    target = create_target_directory(logger, target)
     
     if local_cache is not None:
         cache = create_cache_directory(logger, local_cache)
@@ -108,6 +108,10 @@ def deploy(commands, target=None, local_cache=None, logger=None):
     for command in commands:
         if not command.log:
             command.log = logger
+        
+        # Go back to the directory we're interested in, in case we got bumped
+        # out of it by a command.
+        os.chdir(target)
         
         if hasattr(command, 'run_command'):
             try:
@@ -131,10 +135,10 @@ def deploy(commands, target=None, local_cache=None, logger=None):
 
 def create_target_directory(logger, target_directory):
     if not os.path.exists(target_directory):
-        logger.info("Deploy directory '%s' does not exist. Creating...")
+        logger.info("Deploy directory '%s' does not exist. Creating..." % target_directory)
         os.mkdir(target_directory)
     else:
-        logger.info("Deploy directory '%s' already exists.")
+        logger.info("Deploy directory '%s' already exists." % target_directory)
     
     return target_directory
 
@@ -226,7 +230,7 @@ class Tarball(DeployCommand):
         elif 'tar' in extension:
             extract_command = 'tar xjf %s' % filename
         elif 'zip' in extension:
-            extract_command = 'unzip -f %s' % filename
+            extract_command = 'unzip -u %s' % filename
         else:
             self.log.error("Unable to extract '%s' as it is an unknown type (%s). Please report this issue." % (filename, extension))
             raise CommandFailed("Extraction of tarball failed - %s." % stderr)

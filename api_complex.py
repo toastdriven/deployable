@@ -1,7 +1,7 @@
 from deployable import *
 
 # For testing only! Not necessary if extracting to the current directory is A-OK by you.
-TARGET_DIRECTORY = os.path.join(os.path.dirname(__file__), 'complex_deploy')
+TARGET_DIRECTORY = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'complex_deploy')
 
 
 def whoosh_post(filename):
