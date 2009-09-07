@@ -17,7 +17,7 @@ import sys
 
 
 __author__ = 'Daniel Lindsley'
-__version__ = (0, 2, 0)
+__version__ = (0, 3, 0)
 __license__ = 'BSD'
 
 
@@ -171,13 +171,7 @@ class Shell(DeployCommand):
             self.name = command
     
     def run_command(self):
-        self.log.info("Running shell command '%s'..." % self.command)
-        success, stdout, stderr = self.shell_command(self.command)
-        
-        if not success:
-            raise CommandFailed("Shell command '%s' failed - %s." % (self.command, stderr))
-        
-        self.log.info("Shell command '%s' succeeded." % self.command)
+        self.easy_command(self.command, 'shell command')
 
 
 class Tarball(DeployCommand):
@@ -323,7 +317,7 @@ class Git(DeployCommand):
         self.log.info("Git '%s' succeeded." % self.name)
         
         if self.post_process is not None:
-            self.log.info("Post-processing git '%s'..." % self.name)
+            self.log.info("Post-processing Git '%s'..." % self.name)
             self.post_process(filename)
             self.log.info("Git '%s' post-processing succeeded." % self.name)
 
@@ -388,3 +382,63 @@ class GitSvn(DeployCommand):
             self.log.info("Post-processing GitSvn '%s'..." % self.name)
             self.post_process(filename)
             self.log.info("GitSvn '%s' post-processing succeeded." % self.name)
+
+
+class Svn(DeployCommand):
+    def __init__(self, url, revision=None, target=None, **kwargs):
+        super(Svn, self).__init__(**kwargs)
+        self.url = url
+        self.revision = revision
+        
+        if target is not None:
+            self.target = target
+        else:
+            self.target = os.path.splitext(os.path.basename(self.url))[0]
+        
+        if not self.name:
+            self.name = url
+    
+    def checkout(self):
+        command = 'svn checkout %s' % self.url
+        self.easy_command(command, 'svn checkout')
+    
+    def check_for_repo(self):
+        if not os.path.exists(self.target):
+            return False
+        
+        os.chdir(self.target)
+        
+        command = 'svn info'
+        success, stdout, stderr = self.shell_command(command)
+        
+        if not success:
+            return False
+        
+        return True
+    
+    def update(self, revision=None):
+        os.chdir(self.target)
+        
+        # DRL_TODO: Think about branches here. For now, trunk will do.
+        if revision is None:
+            command = 'svn update'
+        else:
+            command = 'svn update -r%s' % revision
+        
+        self.easy_command(command, 'svn update')
+    
+    def run_command(self):
+        if not self.check_for_repo():
+            self.checkout()
+        else:
+            self.update()
+        
+        if self.revision:
+            self.update(self.revision)
+        
+        self.log.info("Svn '%s' succeeded." % self.name)
+        
+        if self.post_process is not None:
+            self.log.info("Post-processing Svn '%s'..." % self.name)
+            self.post_process(filename)
+            self.log.info("Svn '%s' post-processing succeeded." % self.name)

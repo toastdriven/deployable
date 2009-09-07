@@ -9,7 +9,7 @@ install_list = [
     Shell(command='mkdir foo'),
     Tarball(url='http://pypi.python.org/packages/source/W/Whoosh/Whoosh-0.3.0b24.zip'),
     Git(url='git://github.com/toastdriven/django-haystack.git'),
-    # Svn(url='http://code.djangoproject.com/svn/django/trunk/django'),
+    Svn(url='http://code.djangoproject.com/svn/django/trunk/django'),
     GitSvn(url='http://pysolr.googlecode.com/svn/trunk/'),
 ]
 
