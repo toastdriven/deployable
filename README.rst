@@ -54,9 +54,11 @@ Simply create a Python file of with the name of your choice and fill it with::
     install_list = [
         Shell(command='mkdir foo'),
         Tarball(url='http://pypi.python.org/packages/source/W/Whoosh/Whoosh-0.3.0b24.zip'),
-        # Git(url='git://github.com/toastdriven/django-haystack.git', revision='b44afc6c'),
+        Git(url='git://github.com/toastdriven/django-haystack.git'),
+        Svn(url='http://code.djangoproject.com/svn/django/trunk/django'),
+        GitSvn(url='http://pysolr.googlecode.com/svn/trunk/'),
+        Hg(url='http://bitbucket.org/ubernostrum/django-profiles/'),
     ]
-    
     
     deploy(install_list)
 
@@ -68,5 +70,11 @@ included with this distribution.
 Supported
 ---------
 
-Currently supported are shell and tarball commands, with plans for all the
-major version control systems.
+Currently supported commands are:
+
+* shell
+* tarball
+* Git
+* Mercurial
+* Subversion
+* git-svn

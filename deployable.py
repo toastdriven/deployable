@@ -7,6 +7,8 @@ language-agnostic, easy to use, repeatable, flexible and fault-tolerant.
 
 
 * Requires Python 2.4+ w/ no other dependancies.
+* No install required, just include the ``deployable.py`` file along with your
+  source code.
 * Only test on *nix systems, though it may work on Windows. (Reports/patches
   accepted!)
 """
